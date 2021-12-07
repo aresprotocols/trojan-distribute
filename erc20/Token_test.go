@@ -1,12 +1,15 @@
-package token
+package erc20
 
 import (
 	"context"
 	"fmt"
+	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
+	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethclient"
 	"math/big"
 	"os"
 	"testing"
-	"trojan/distribute/backends"
+	"trojan/distribute/wallet"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
 	"github.com/ethereum/go-ethereum/core"
@@ -30,13 +33,13 @@ var (
 
 func TestErc20(t *testing.T) {
 	contractBackend := backends.NewSimulatedBackend(core.GenesisAlloc{
-		addr:     {Balance: big.NewInt(1000000000)},
-		testAddr: {Balance: big.NewInt(10000000000)}},
-		1000000)
-	transactOpts := bind.NewKeyedTransactor(key)
-	keyOpts := bind.NewKeyedTransactor(key2)
-
+		addr:     {Balance: big.NewInt(1000000000000000000)},
+		testAddr: {Balance: big.NewInt(1000000000000000000)}},
+		10000000000)
+	transactOpts, _ := bind.NewKeyedTransactorWithChainID(key, big.NewInt(1337))
+	keyOpts, _ := bind.NewKeyedTransactorWithChainID(key2, big.NewInt(1337))
 	// Deploy the ENS registry
+
 	ensAddr, _, _, err := DeployToken(transactOpts, contractBackend)
 	if err != nil {
 		t.Fatalf("can't DeployContract: %v", err)
@@ -128,7 +131,7 @@ func TestErc20(t *testing.T) {
 	balance, _ = contractBackend.BalanceAt(context.Background(), testAddr, nil)
 	fmt.Println("balance", balance)
 	keyOpts.Value = new(big.Int).SetUint64(10000000)
-	tx, err = ens.ApproveOne(keyOpts, addr)
+	tx, err = ens.Approve(keyOpts, addr, big.NewInt(10000))
 	if err != nil {
 		log.Error("Failed to retrieve ApproveOne ", "name: %v", err)
 	}
@@ -136,4 +139,87 @@ func TestErc20(t *testing.T) {
 
 	balance, _ = contractBackend.BalanceAt(context.Background(), testAddr, nil)
 	fmt.Println("11balance", balance)
+}
+
+func TestReadErc20(t *testing.T) {
+	url := "https://mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161"
+
+	client, url := dialConn(url)
+
+	ens, err := NewToken(common.HexToAddress("0x358AA737e033F34df7c54306960a38d09AaBd523"), client)
+	if err != nil {
+		t.Fatalf("can't NewContract: %v", err)
+	}
+
+	// Set ourself as the owner of the name.
+	name, err := ens.Name(nil)
+	if err != nil {
+		log.Error("Failed to retrieve token ", "name: %v", err)
+	}
+	fmt.Println("Token name:", name)
+
+	// Set ourself as the owner of the name.
+	symbol, err := ens.Symbol(nil)
+	if err != nil {
+		log.Error("Failed to retrieve token ", "name: %v", err)
+	}
+	fmt.Println("Token symbol:", symbol)
+
+	totalSupply, err := ens.TotalSupply(nil)
+	if err != nil {
+		log.Error("Failed to retrieve token ", "name: %v", err)
+	}
+	fmt.Println("totalSupply ", totalSupply)
+
+	balance, err := ens.BalanceOf(nil, common.HexToAddress("0x7a646ee13eb104853c651e1d90d143acc9e72cdb"))
+	if err != nil {
+		log.Error("Failed to retrieve token ", "name: %v", err)
+	}
+	fmt.Println("addr balance BalanceOf", balance)
+}
+
+func TestStakingErc20(t *testing.T) {
+	url := "https://mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161"
+
+	client, url := dialConn(url)
+
+	ens, err := NewToken(common.HexToAddress("0x358AA737e033F34df7c54306960a38d09AaBd523"), client)
+	if err != nil {
+		t.Fatalf("can't NewContract: %v", err)
+	}
+	arrs := []common.Address{
+		common.HexToAddress("0xdf1afbc5d532a607329b095e39a013eb672a4eb3"),
+		common.HexToAddress("0xa99d9fa06dd1827fd39ab2d6e0d8eb1dae9c4b93"),
+		common.HexToAddress("0x4c4f6d9fae70236888c4d613199ea4419ada23e8"),
+		common.HexToAddress("0xb31d8eba3f5e2d758b54544e4446b39f9cb769ea"),
+	}
+	total := new(big.Int)
+	for _, arr := range arrs {
+		balance, err := ens.BalanceOf(nil, arr)
+		if err != nil {
+			log.Error("Failed to retrieve token ", "name: %v", err)
+		}
+		total.Add(total, balance)
+	}
+
+	fmt.Println("addr balance BalanceOf", total, " ", wallet.ToEth(total))
+}
+
+func dialConn(url string) (*ethclient.Client, string) {
+	ip := "165.227.99.131"
+	port := 8545
+
+	//url = "https://ethrpc.truescan.network"
+	//url = "https://kovan.poa.network/"
+
+	if url == "" {
+		url = fmt.Sprintf("http://%s", fmt.Sprintf("%s:%d", ip, port))
+	}
+	// Create an IPC based RPC connection to a remote node
+	// "http://39.100.97.129:8545"
+	conn, err := ethclient.Dial(url)
+	if err != nil {
+		fmt.Printf("Failed to connect to the ethereum client: %v \n", err)
+	}
+	return conn, url
 }
