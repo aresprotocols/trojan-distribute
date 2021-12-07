@@ -1,6 +1,4 @@
-## Ares Cross Chain Signer 
-
-ETH - > BSC ARES Bridge
+## Trojan Box Guess
 
 ### Build
 ```bigquery
@@ -11,5 +9,3 @@ go build main.go
 ```bigquery
 ./main
 ```
-
-This need input keystore password
