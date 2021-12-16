@@ -3,12 +3,15 @@ package erc20
 import (
 	"context"
 	"fmt"
+	"github.com/360EntSecGroup-Skylar/excelize"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"math/big"
 	"os"
+	"strconv"
 	"testing"
+	"time"
 	"trojan/distribute/wallet"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -222,4 +225,91 @@ func dialConn(url string) (*ethclient.Client, string) {
 		fmt.Printf("Failed to connect to the ethereum client: %v \n", err)
 	}
 	return conn, url
+}
+
+func TestReadEns(t *testing.T) {
+	url := "https://mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161"
+
+	client, url := dialConn(url)
+
+	filter, err := NewMainFilterer(common.HexToAddress("0x283Af0B28c62C092C9727F1Ee09c02CA627EB7F5"), client)
+	if err != nil {
+		t.Fatalf("can't NewContract: %v", err)
+	}
+
+	xlsx1 := excelize.NewFile()
+	index := xlsx1.NewSheet("ENS")
+	xlsx1.SetCellStr("ENS", "A1", "Name")
+	xlsx1.SetCellStr("ENS", "B1", "Label")
+	xlsx1.SetCellStr("ENS", "C1", "Owner")
+	xlsx1.SetCellStr("ENS", "D1", "Cost")
+	xlsx1.SetCellStr("ENS", "E1", "Expires")
+
+	number, err := client.BlockNumber(context.Background())
+	if err != nil {
+		t.Fatalf("can't BlockNumber: %v", err)
+	}
+
+	step := uint64(1000000)
+	opts := &bind.FilterOpts{
+		Start:   0,
+		End:     &step,
+		Context: context.Background(),
+	}
+	find := false
+	var event *MainNameRegistered
+	count := 1
+	for i := 1; i < 10000; i++ {
+		registeredIterator, err := filter.FilterNameRegistered(opts, nil, nil)
+		fmt.Println("FilterNameRegistered err", err, "opts", opts.Start, " end ", *opts.End)
+
+		for registeredIterator.Next() {
+			find = true
+			event = registeredIterator.Event
+			fmt.Println("name", event.Name, "label", event.Cost, "time", ConvertTime(event.Expires.Uint64()), "height", event.Raw.BlockNumber, "tx", event.Raw.TxHash.String())
+
+			arrs := [5]string{"A", "B", "C", "D", "E"}
+			count++
+			var enums = []string{event.Name, string(event.Label[:]), event.Owner.String(), wallet.ToEth(event.Cost).String(), ConvertTime(event.Expires.Uint64())}
+			for ind, aplat := range arrs {
+				axis := aplat + strconv.FormatInt(int64(count), 10)
+				xlsx1.SetCellStr("ENS", axis, enums[ind])
+			}
+		}
+
+		if !registeredIterator.Next() && find {
+			opts.Start = *opts.End
+			end := uint64(0)
+			if opts.Start < 12500000 {
+				end = opts.Start + step/10
+			} else if opts.Start > 12500000 && opts.Start < 13580000 {
+				end = opts.Start + step/100
+			} else {
+				end = opts.Start + step/1000
+			}
+			opts.End = &end
+			fmt.Println("Next err", err, "opts", opts.Start, " end ", end)
+		}
+		if !find {
+			opts.Start = opts.Start + step
+			end := opts.Start + step
+			opts.End = &end
+			fmt.Println("find err", err, "opts", opts.Start, " end ", end)
+		}
+
+		if opts.Start > number {
+			break
+		}
+	}
+
+	xlsx1.SetActiveSheet(index)
+	err = xlsx1.SaveAs("./ENS Select.xlsx")
+	if err != nil {
+		fmt.Println(err)
+	}
+}
+
+func ConvertTime(utime uint64) string {
+	format := time.Unix(int64(utime), 0).Format("2006-01-02 15:04:05")
+	return format
 }

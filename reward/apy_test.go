@@ -2,7 +2,6 @@ package reward
 
 import (
 	"fmt"
-	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/common/math"
 	"testing"
 	"trojan/distribute/wallet"
@@ -42,14 +41,9 @@ func TestNormalAPY(t *testing.T) {
 	fmt.Println(" daily count ", daily36*6/10, " ", daily48*6/10)
 
 	// 6 4
-	v, _ := math.ParseBig256("62500000000000000000000")
+	v, _ := math.ParseBig256("300000000000000000000000")
 
 	fmt.Println(" ", wallet.ToEth(v))
 	//pool := 0
 
-}
-
-type UserInfo struct {
-	account common.Address
-	index   uint64
 }
