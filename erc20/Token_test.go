@@ -6,12 +6,12 @@ import (
 	"github.com/360EntSecGroup-Skylar/excelize"
 	"github.com/ethereum/go-ethereum/accounts/abi/bind/backends"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/ethclient"
 	"math/big"
 	"os"
 	"strconv"
 	"testing"
 	"time"
+	"trojan/distribute/util"
 	"trojan/distribute/wallet"
 
 	"github.com/ethereum/go-ethereum/accounts/abi/bind"
@@ -147,7 +147,7 @@ func TestErc20(t *testing.T) {
 func TestReadErc20(t *testing.T) {
 	url := "https://mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161"
 
-	client, url := dialConn(url)
+	client, url := util.DialConn(url)
 
 	ens, err := NewToken(common.HexToAddress("0x358AA737e033F34df7c54306960a38d09AaBd523"), client)
 	if err != nil {
@@ -184,7 +184,7 @@ func TestReadErc20(t *testing.T) {
 func TestStakingErc20(t *testing.T) {
 	url := "https://mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161"
 
-	client, url := dialConn(url)
+	client, url := util.DialConn(url)
 
 	ens, err := NewToken(common.HexToAddress("0x358AA737e033F34df7c54306960a38d09AaBd523"), client)
 	if err != nil {
@@ -208,29 +208,10 @@ func TestStakingErc20(t *testing.T) {
 	fmt.Println("addr balance BalanceOf", total, " ", wallet.ToEth(total))
 }
 
-func dialConn(url string) (*ethclient.Client, string) {
-	ip := "165.227.99.131"
-	port := 8545
-
-	//url = "https://ethrpc.truescan.network"
-	//url = "https://kovan.poa.network/"
-
-	if url == "" {
-		url = fmt.Sprintf("http://%s", fmt.Sprintf("%s:%d", ip, port))
-	}
-	// Create an IPC based RPC connection to a remote node
-	// "http://39.100.97.129:8545"
-	conn, err := ethclient.Dial(url)
-	if err != nil {
-		fmt.Printf("Failed to connect to the ethereum client: %v \n", err)
-	}
-	return conn, url
-}
-
 func TestReadEns(t *testing.T) {
 	url := "https://mainnet.infura.io/v3/9aa3d95b3bc440fa88ea12eaa4456161"
 
-	client, url := dialConn(url)
+	client, url := util.DialConn(url)
 
 	filter, err := NewMainFilterer(common.HexToAddress("0x283Af0B28c62C092C9727F1Ee09c02CA627EB7F5"), client)
 	if err != nil {
